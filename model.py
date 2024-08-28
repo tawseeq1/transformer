@@ -127,6 +127,55 @@ class Encoder(nn.Module):
         return self.norm(x)
     
 class DecoderBlock(nn.Module):
+    def __init__(self, self_attention_block: MultiHeadAttention, cross_attention_block: MultiHeadAttention,  feed_forward_block: FeedForwardBlock, dropout: float) -> None:
+        super().__init__()
+        self.self_attention_block = self_attention_block
+        self.cross_attention_block = cross_attention_block
+        self.feed_forward_block = feed_forward_block
+        self.residual_connection = nn.ModuleList([ResidualConnection(dropout) for _ in range(3)])
+    def forward(self, x, src_mask, encoder_output, target_mask):
+        x = self.residual_connection[0](x, lambda x: self.self_attention_block(x, x, x, target_mask))
+        x = self.residual_connection[1](x, lambda x: self.cross_attention_block(x, encoder_output, encoder_output, target_mask)) #because we get the query from the decoder block and key & values are passed through the encode block
+        x = self.residual_connection[2](x, self.feed_forward_block)
+        return x
+class Decoder(nn.Module):
+    def __init__(self, layers: nn.ModuleList) -> None:
+        super().__init__()
+        self.layers = layers
+        self.norm = LayerNormalization()
+    def forward(self, x, encoder_output, src_mask, target_mask):
+        for layer in self.layers:
+            x = layer(x, encoder_output, src_mask, target_mask)
+        return self.norm(x)
+class ProjectionLayer(nn.Module):
+    def __init__(self, d_model: int, vocab_size: int) -> None:
+        super().__init__()
+        self.proj = nn.Linear(d_model, vocab_size)
+    def forward(self, x) -> None:
+        # we go from dimension (batch, seq_len, d_model) to (batch, seq_len, vocab_size)
+        return torch.log_softmax(self.proj(x), dim = -1)
+class Transformer(nn.Module): 
+    def __init__(self, encoder:Encoder, decoder: Decoder, projection_layer: ProjectionLayer, src_embedding: InputEmbeddings, target_embedding: InputEmbeddings, src_pos: PositionalEmbedding, target_pos: PositionalEmbedding) -> None:
+        super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.src_embed = src_embedding
+        self.target_embedding = target_embedding
+        self.src_pos = src_pos
+        self.target_pos = target_pos
+        self.projection_layer = projection_layer
+    def encode(self, src, src_mask):
+        src = self.src_embed(src)
+        src = self.src_pos(src)
+        return self.encoder(src, src_mask)
+    def decode(self, target, encoder_output: torch.Tensor, src_mask: torch.Tensor, target_mask: torch.Tensor):
+        target = self.target_embedding(target)
+        target = self.target_pos(target)
+        return self.decoder(target, encoder_output, src_mask, target_mask)
+    def proj(self, x):
+        self.projection_layer(x)
+        
+
     
         
             
