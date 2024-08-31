@@ -198,10 +198,16 @@ def build_transformer(src_vocab_size: int, target_vocab_size: int, src_seq_len: 
         decode_block = DecoderBlock(decoder_self_attention_block, decoder_cross_attention_block, feed_forward_block, dropout)
         decoder_blocks.append(decode_block)
 
+    encoder = Encoder(nn.ModuleList(encoder_blocks))
+    decoder = Decoder(nn.ModuleList(decoder_blocks))
 
+    projection_layer = ProjectionLayer(d_model, target_vocab_size)
 
+    transformer = Transformer(encoder, decoder, projection_layer, src_embedding, target_embedding, src_pos, target_pos)
 
-
-
-
-        
+    #Now we will initialize the parameters to make the training faster using xavier uniform
+    for p in transformer.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
+    return transformer
+    
