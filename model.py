@@ -135,7 +135,7 @@ class DecoderBlock(nn.Module):
         self.residual_connection = nn.ModuleList([ResidualConnection(dropout) for _ in range(3)])
     def forward(self, x, src_mask, encoder_output, target_mask):
         x = self.residual_connection[0](x, lambda x: self.self_attention_block(x, x, x, target_mask))
-        x = self.residual_connection[1](x, lambda x: self.cross_attention_block(x, encoder_output, encoder_output, target_mask)) #because we get the query from the decoder block and key & values are passed through the encode block
+        x = self.residual_connection[1](x, lambda x: self.cross_attention_block(x, encoder_output, encoder_output, src_mask)) #because we get the query from the decoder block and key & values are passed through the encode block
         x = self.residual_connection[2](x, self.feed_forward_block)
         return x
 class Decoder(nn.Module):
@@ -174,15 +174,34 @@ class Transformer(nn.Module):
         return self.decoder(target, encoder_output, src_mask, target_mask)
     def proj(self, x):
         self.projection_layer(x)
-        
 
-    
-        
-            
-        
-        
-        
-        
-        
-        
+def build_transformer(src_vocab_size: int, target_vocab_size: int, src_seq_len: int, target_seq_len: int, d_model: int = 512, n: int = 6, h: int = 8, dropout: float = 0.1, d_ff: int = 2048 ) -> Transformer:
+    src_embedding = InputEmbeddings(d_model, src_vocab_size)
+    target_embedding = InputEmbeddings(d_model, target_vocab_size)
+    src_pos = PositionalEmbedding(d_model, src_seq_len, dropout)
+    target_pos = PositionalEmbedding(d_model, target_seq_len, dropout)
+
+    encoder_blocks = []
+
+    for _ in range(n):
+        encoder_self_attention_block = MultiHeadAttention(d_model, h, dropout)
+        feed_forward_block = FeedForwardBlock(d_model, d_ff, dropout)
+        encode_block = EncoderBlock(encoder_self_attention_block, feed_forward_block, dropout)
+        encoder_blocks.append(encode_block)
+
+    decoder_blocks = []
+
+    for _ in range(n):
+        decoder_self_attention_block = MultiHeadAttention(d_model, h, dropout)
+        decoder_cross_attention_block = MultiHeadAttention(d_model, h, dropout)
+        feed_forward_block = FeedForwardBlock(d_model, d_ff, dropout)
+        decode_block = DecoderBlock(decoder_self_attention_block, decoder_cross_attention_block, feed_forward_block, dropout)
+        decoder_blocks.append(decode_block)
+
+
+
+
+
+
+
         
