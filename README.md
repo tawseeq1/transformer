@@ -1,2 +1,2 @@
-# Building a Transformer for Language Translation with PyTorch from scratch
+# Building a Transformer for Language Translation with PyTorch from scratch (Working on this)
 This code implements a Transformer model (inspired by the "Attention is all you need" paper) from scratch using PyTorch. We'll use it for language translation, leveraging datasets available on [Hugging Face](https://huggingface.co/datasets/Helsinki-NLP/opus_books/viewer) Remember, this architecture is flexible! With adjustments, it can be adapted to tackle other tasks as well.
